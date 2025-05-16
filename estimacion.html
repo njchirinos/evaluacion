@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estimación Puntual e Intervalo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #resultado {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Estimación Puntual e Intervalo</h1>
+
+        <label for="datos">Ingrese los datos de la muestra (separados por comas):</label>
+        <input type="text" id="datos" placeholder="Ej: 25, 28, 32, 22, 29">
+
+        <label for="confianza">Nivel de Confianza (%):</label>
+        <input type="number" id="confianza" value="95" min="1" max="99">
+
+        <button onclick="calcularEstimacion()">Calcular</button>
+
+        <div id="resultado">
+            </div>
+    </div>
+
+    <script>
+        function calcularEstimacion() {
+            const datosInput = document.getElementById("datos").value;
+            const confianzaInput = parseFloat(document.getElementById("confianza").value) / 100;
+            const resultadoDiv = document.getElementById("resultado");
+            resultadoDiv.innerHTML = ""; // Limpiar resultados anteriores
+
+            if (!datosInput.trim()) {
+                resultadoDiv.classList.add("error");
+                resultadoDiv.textContent = "Por favor, ingrese los datos de la muestra.";
+                return;
+            }
+            resultadoDiv.classList.remove("error");
+
+            const datosStr = datosInput.split(',');
+            const datos = datosStr.map(Number).filter(num => !isNaN(num));
+
+            if (datos.length < 1) {
+                resultadoDiv.classList.add("error");
+                resultadoDiv.textContent = "No se ingresaron datos numéricos válidos.";
+                return;
+            }
+            resultadoDiv.classList.remove("error");
+
+            if (isNaN(confianzaInput) || confianzaInput <= 0 || confianzaInput >= 1) {
+                resultadoDiv.classList.add("error");
+                resultadoDiv.textContent = "Por favor, ingrese un nivel de confianza válido (entre 1 y 99).";
+                return;
+            }
+            resultadoDiv.classList.remove("error");
+
+            const n = datos.length;
+            const mediaMuestral = datos.reduce((sum, num) => sum + num, 0) / n;
+            const desviacionEstandarMuestral = Math.sqrt(datos.reduce((sum, num) => sum + Math.pow(num - mediaMuestral, 2), 0) / (n - 1));
+            const errorEstandar = desviacionEstandarMuestral / Math.sqrt(n);
+            const alpha = 1 - confianzaInput;
+
+            let margenError;
+            let gradosLibertad;
+            let valorCritico;
+
+            if (n < 30) {
+                gradosLibertad = n - 1;
+                valorCritico = tStudent(alpha / 2, gradosLibertad);
+                margenError = valorCritico * errorEstandar;
+            } else {
+                valorCritico = normalEstadar(1 - alpha / 2);
+                margenError = valorCritico * errorEstandar;
+            }
+
+            const limiteInferior = mediaMuestral - margenError;
+            const limiteSuperior = mediaMuestral + margenError;
+
+            const resultadoHTML = `
+                <p><strong>Tamaño de la muestra (n):</strong> ${n}</p>
+                <p><strong>Media Muestral (x̄):</strong> ${mediaMuestral.toFixed(2)}</p>
+                <p><strong>Desviación Estándar Muestral (s):</strong> ${desviacionEstandarMuestral.toFixed(2)}</p>
+                <p><strong>Nivel de Confianza:</strong> ${(confianzaInput * 100).toFixed(0)}%</p>
+                <p><strong>Estimación Puntual (Media):</strong> ${mediaMuestral.toFixed(2)}</p>
+                <p><strong>Estimación por Intervalo:</strong> (${limiteInferior.toFixed(2)}, ${limiteSuperior.toFixed(2)})</p>
+            `;
+
+            resultadoDiv.innerHTML = resultadoHTML;
+        }
+
+        // Función para obtener el valor crítico de la distribución t de Student (aproximación)
+        function tStudent(p, df) {
+            // Esta es una aproximación simplificada. Para mayor precisión,
+            // se recomienda usar una librería estadística en el backend.
+            const a = Math.log((1 - p) / p);
+            const aa = a * a;
+            let result = a * (1 - 0.001308 * aa - 0.0000678 * Math.pow(aa, 2) - 0.000003078 * Math.pow(aa, 3));
+            result = result * Math.sqrt(df) * (1 - 0.5 / df - 0.08 / Math.pow(df, 2) - 0.3 / Math.pow(df, 3));
+            return result;
+        }
+
+        // Función para obtener el valor crítico de la distribución normal estándar (aproximación)
+        function normalEstadar(p) {
+            const a1 = -39.69683028665376;
+            const a2 = 220.9460984245205;
+            const a3 = -275.9285104469687;
+            const a4 = 138.357751867269;
+            const a5 = -30.66479806614716;
+            const a6 = 2.506628277459239;
+            const b1 = -54.47609879822406;
+            const b2 = 161.5858368580409;
+            const b3 = -155.6989798930989;
+            const b4 = 66.8013118877197;
+            const b5 = -13.28068155288572;
+            const c1 = -7.784894002430293e-3;
+            const c2 = -0.3223964580411365;
+            const c3 = -2.400758277899522;
+            const c4 = -2.549732539343734;
+            const c5 = 4.374664141464968;
+            const c6 = 2.938163982698783;
+            const d1 = 7.784695709041462e-3;
+            const d2 = 0.3224671290700391;
+            const d3 = 2.445134137142996;
+            const d4 = 3.754408661907416;
+            const p_low = 0.02425;
+
+            let q = p - 0.5;
+            let r;
+            if (Math.abs(q) <= 0.425) {
+                r = q * q;
+                return a1 + a2 * r + a3 * Math.pow(r, 2) + a4 * Math.pow(r, 3) + a5 * Math.pow(r, 4) + a6 * Math.pow(r, 5);
+            } else {
+                r = p;
+                if (q > 0) r = 1 - p;
+                r = Math.sqrt(-Math.log(r));
+                return (c1 + c2 * r + c3 * Math.pow(r, 2) + c4 * Math.pow(r, 3) + c5 * Math.pow(r, 4) + c6 * Math.pow(r, 5)) /
+                       (1 + d1 * r + d2 * Math.pow(r, 2) + d3 * Math.pow(r, 3) + d4 * Math.pow(r, 4));
+            }
+        }
+    </script>
+</body>
+</html>
